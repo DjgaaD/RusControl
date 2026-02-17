@@ -1,0 +1,20 @@
+#!/bin/sh
+echo "Content-Type: text/html; charset=utf-8"
+echo ""
+MAC=$(echo "$QUERY_STRING" | sed -n 's/.*mac=\([^&]*\).*/\1/p')
+if [ -z "$MAC" ]; then
+    echo "<html><head><meta charset='utf-8'></head><body><h2>❌ MAC не указан</h2><a href='/cgi-bin/devices'>← Назад</a></body></html>"
+    exit 1
+fi
+for iface in $(uci show wireless | grep "=wifi-iface" | cut -d= -f1); do
+    uci set "${iface}.macfilter=deny"
+    uci add_list "${iface}.maclist=${MAC}"
+done
+uci commit wireless
+for ap in $(ubus list | grep hostapd); do
+    ubus call "$ap" del_client '{"addr":"'"$MAC"'","reason":1,"deauth":true}' 2>/dev/null
+done
+hostapd_cli -i phy0-ap0 deny_acl ADD_MAC "$MAC" 2>/dev/null
+hostapd_cli -i phy1-ap0 deny_acl ADD_MAC "$MAC" 2>/dev/null
+echo "<html><head><meta charset='utf-8'><meta http-equiv='refresh' content='2;url=/cgi-bin/devices'></head><body>"
+echo "<h2>✅ Заблокировано: $MAC</h2></body></html>"

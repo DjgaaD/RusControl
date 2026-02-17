@@ -1,0 +1,10 @@
+#!/bin/sh
+echo "Content-Type: text/html; charset=utf-8"
+echo ""
+MAC=$(echo "$QUERY_STRING" | sed -n 's/.*mac=\([^&]*\).*/\1/p')
+if [ -n "$MAC" ]; then
+    sed -i "/#SCHED_${MAC}/d" /etc/crontabs/root 2>/dev/null
+    /etc/init.d/cron restart
+fi
+echo "<html><head><meta charset='utf-8'><meta http-equiv='refresh' content='2;url=/cgi-bin/schedule'></head><body>"
+echo "<h2>✅ Расписание удалено</h2></body></html>"

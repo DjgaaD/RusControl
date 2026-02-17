@@ -1,0 +1,15 @@
+#!/bin/sh
+MAC="$1"
+[ -z "$MAC" ] && exit 1
+grep -qi "$MAC" /etc/wifi_whitelist 2>/dev/null && exit 0
+logger -t wifi_schedule "BLOCK $MAC"
+for iface in $(uci show wireless | grep "=wifi-iface" | cut -d= -f1); do
+    uci set "${iface}.macfilter=deny"
+    uci add_list "${iface}.maclist=${MAC}"
+done
+uci commit wireless
+for ap in $(ubus list | grep hostapd); do
+    ubus call "$ap" del_client '{"addr":"'"$MAC"'","reason":1,"deauth":true}' 2>/dev/null
+done
+hostapd_cli -i phy0-ap0 deny_acl ADD_MAC "$MAC" 2>/dev/null
+hostapd_cli -i phy1-ap0 deny_acl ADD_MAC "$MAC" 2>/dev/null

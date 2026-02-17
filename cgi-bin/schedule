@@ -1,0 +1,112 @@
+#!/bin/sh
+echo "Content-Type: text/html; charset=utf-8"
+echo ""
+METHOD="$REQUEST_METHOD"
+
+if [ "$METHOD" = "POST" ]; then
+    read -r POST_DATA
+    MAC=$(echo "$POST_DATA" | sed -n 's/.*mac=\([^&]*\).*/\1/p')
+    HOUR_ON=$(echo "$POST_DATA" | sed -n 's/.*hour_on=\([^&]*\).*/\1/p')
+    MIN_ON=$(echo "$POST_DATA" | sed -n 's/.*min_on=\([^&]*\).*/\1/p')
+    HOUR_OFF=$(echo "$POST_DATA" | sed -n 's/.*hour_off=\([^&]*\).*/\1/p')
+    MIN_OFF=$(echo "$POST_DATA" | sed -n 's/.*min_off=\([^&]*\).*/\1/p')
+    DAYS=""
+    echo "$POST_DATA" | grep -q "d_mon=on" && DAYS="${DAYS}1,"
+    echo "$POST_DATA" | grep -q "d_tue=on" && DAYS="${DAYS}2,"
+    echo "$POST_DATA" | grep -q "d_wed=on" && DAYS="${DAYS}3,"
+    echo "$POST_DATA" | grep -q "d_thu=on" && DAYS="${DAYS}4,"
+    echo "$POST_DATA" | grep -q "d_fri=on" && DAYS="${DAYS}5,"
+    echo "$POST_DATA" | grep -q "d_sat=on" && DAYS="${DAYS}6,"
+    echo "$POST_DATA" | grep -q "d_sun=on" && DAYS="${DAYS}0,"
+    DAYS=$(echo "$DAYS" | sed 's/,$//')
+
+    if [ -n "$MAC" ] && [ -n "$HOUR_ON" ] && [ -n "$HOUR_OFF" ] && [ -n "$DAYS" ]; then
+        sed -i "/#SCHED_${MAC}/d" /etc/crontabs/root 2>/dev/null
+        touch /etc/crontabs/root
+
+        if [ "$MAC" = "ALL" ]; then
+            echo "${MIN_ON} ${HOUR_ON} * * ${DAYS} /www/cgi-bin/wifi_block_all #SCHED_${MAC}" >> /etc/crontabs/root
+            echo "${MIN_OFF} ${HOUR_OFF} * * ${DAYS} /www/cgi-bin/wifi_unblock_all #SCHED_${MAC}" >> /etc/crontabs/root
+        else
+            echo "${MIN_ON} ${HOUR_ON} * * ${DAYS} /www/cgi-bin/wifi_block ${MAC} #SCHED_${MAC}" >> /etc/crontabs/root
+            echo "${MIN_OFF} ${HOUR_OFF} * * ${DAYS} /www/cgi-bin/wifi_unblock ${MAC} #SCHED_${MAC}" >> /etc/crontabs/root
+        fi
+        /etc/init.d/cron restart
+    fi
+fi
+
+ROUTER_TIME=$(date '+%H:%M:%S %d.%m.%Y')
+echo "<html><head><title>Расписание</title><meta charset='utf-8'>"
+echo "<style>"
+echo "body{font-family:Arial,sans-serif;padding:20px;background:#f5f5f5}"
+echo "table{border-collapse:collapse;margin:10px 0;background:white;box-shadow:0 0 10px rgba(0,0,0,0.1);width:100%}"
+echo "th,td{padding:10px;border:1px solid #ddd;text-align:center}"
+echo "th{background:#f2f2f2}"
+echo ".form-box{background:white;padding:20px;border-radius:8px;box-shadow:0 0 10px rgba(0,0,0,0.1);margin:20px 0;max-width:600px}"
+echo "select,input[type=submit],input[type=number]{padding:8px;margin:4px;border-radius:4px;border:1px solid #ccc}"
+echo "input[type=number]{width:60px;text-align:center}"
+echo "input[type=submit]{background:#0066cc;color:white;border:none;cursor:pointer;padding:10px 20px}"
+echo "label{margin-right:10px}"
+echo ".del-btn{color:white;background:#d00;padding:4px 10px;border-radius:4px;text-decoration:none;font-size:0.85em}"
+echo ".btn-nav{color:white;background:#0066cc;padding:8px 16px;border-radius:4px;text-decoration:none;margin-right:8px}"
+echo ".time-box{background:#333;color:#0f0;padding:10px 20px;border-radius:8px;display:inline-block;font-family:monospace;font-size:1.3em;margin:10px 0}"
+echo "</style></head><body>"
+echo "<h1>⏰ Расписание блокировки</h1>"
+echo "<div class='time-box'>🕐 $ROUTER_TIME</div>"
+echo "<p><a href='/cgi-bin/devices' class='btn-nav'>← Устройства</a><a href='/cgi-bin/whitelist' class='btn-nav'>⚪ Белый список</a></p>"
+
+echo "<div class='form-box'>"
+echo "<h3>Добавить расписание</h3>"
+echo "<form method='POST' action='/cgi-bin/schedule'>"
+echo "<p><strong>Устройство:</strong><br>"
+echo "<select name='mac'>"
+echo "<option value='ALL'>🌐 ВСЕ УСТРОЙСТВА (кроме белого списка)</option>"
+while IFS=' ' read -r ts mac ip name rest; do
+    [ "$name" = "*" ] && name="$mac"
+    echo "<option value='$mac'>$name ($mac)</option>"
+done < /tmp/dhcp.leases
+echo "</select></p>"
+echo "<p><strong>Блокировать с:</strong><br>"
+echo "<input type='number' name='hour_on' min='0' max='23' value='22' style='width:60px'> ч"
+echo "<input type='number' name='min_on' min='0' max='59' value='00' style='width:60px'> мин</p>"
+echo "<p><strong>Разблокировать в:</strong><br>"
+echo "<input type='number' name='hour_off' min='0' max='23' value='07' style='width:60px'> ч"
+echo "<input type='number' name='min_off' min='0' max='59' value='00' style='width:60px'> мин</p>"
+echo "<p><strong>Дни недели:</strong><br>"
+echo "<label><input type='checkbox' name='d_mon' checked> Пн</label>"
+echo "<label><input type='checkbox' name='d_tue' checked> Вт</label>"
+echo "<label><input type='checkbox' name='d_wed' checked> Ср</label>"
+echo "<label><input type='checkbox' name='d_thu' checked> Чт</label>"
+echo "<label><input type='checkbox' name='d_fri' checked> Пт</label>"
+echo "<label><input type='checkbox' name='d_sat' checked> Сб</label>"
+echo "<label><input type='checkbox' name='d_sun' checked> Вс</label></p>"
+echo "<input type='submit' value='💾 Сохранить расписание'>"
+echo "</form></div>"
+
+echo "<h2>📋 Текущие расписания</h2>"
+if [ -f /etc/crontabs/root ] && grep -q "#SCHED_" /etc/crontabs/root; then
+    echo "<table><tr><th>Устройство</th><th>Время</th><th>Действие</th><th>Дни</th><th>Удалить</th></tr>"
+    grep "#SCHED_" /etc/crontabs/root | while read line; do
+        MIN=$(echo "$line" | awk '{print $1}')
+        HOUR=$(echo "$line" | awk '{print $2}')
+        CRON_DAYS=$(echo "$line" | awk '{print $5}')
+        SMAC=$(echo "$line" | sed -n 's/.*#SCHED_\(.*\)/\1/p')
+        if echo "$line" | grep -q "unblock"; then
+            ACT="✅ Разблокировка"
+        else
+            ACT="⛔ Блокировка"
+        fi
+        if [ "$SMAC" = "ALL" ]; then
+            DEV_NAME="🌐 ВСЕ"
+        else
+            DEV_NAME=$(grep -i "$SMAC" /tmp/dhcp.leases | awk '{print $4}')
+            [ -z "$DEV_NAME" ] || [ "$DEV_NAME" = "*" ] && DEV_NAME="$SMAC"
+        fi
+        DAYS_TEXT=$(echo "$CRON_DAYS" | sed 's/0/Вс/g;s/1/Пн/g;s/2/Вт/g;s/3/Ср/g;s/4/Чт/g;s/5/Пт/g;s/6/Сб/g')
+        printf "<tr><td>%s</td><td>%02d:%02d</td><td>%s</td><td>%s</td><td><a href='/cgi-bin/schedule_del?mac=%s' class='del-btn'>🗑️</a></td></tr>\n" "$DEV_NAME" "$HOUR" "$MIN" "$ACT" "$DAYS_TEXT" "$SMAC"
+    done
+    echo "</table>"
+else
+    echo "<p>Нет активных расписаний</p>"
+fi
+echo "</body></html>"

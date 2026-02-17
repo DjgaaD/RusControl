@@ -1,0 +1,9 @@
+#!/bin/sh
+logger -t wifi_schedule "UNBLOCK ALL triggered"
+for iface in $(uci show wireless | grep "=wifi-iface" | cut -d= -f1); do
+    uci delete "${iface}.macfilter" 2>/dev/null
+    uci delete "${iface}.maclist" 2>/dev/null
+done
+uci commit wireless
+wifi reload
+logger -t wifi_schedule "UNBLOCK ALL done"

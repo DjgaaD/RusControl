@@ -1,0 +1,6 @@
+#!/bin/sh
+echo "Content-Type: text/html; charset=utf-8"
+echo ""
+/www/cgi-bin/wifi_unblock_all
+echo "<html><head><meta charset='utf-8'><meta http-equiv='refresh' content='5;url=/cgi-bin/devices'></head><body>"
+echo "<h2>🔓 Все устройства разблокированы</h2><p>WiFi перезагружается...</p></body></html>"
