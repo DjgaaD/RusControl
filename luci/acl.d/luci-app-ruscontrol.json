@@ -1,0 +1,14 @@
+{
+    "luci-app-ruscontrol": {
+        "description": "Grant access to RusControl",
+        "read": {
+            "ubus": {
+                "session": ["access"]
+            },
+            "uci": ["wireless", "dhcp", "firewall"]
+        },
+        "write": {
+            "uci": ["wireless", "dhcp", "firewall"]
+        }
+    }
+}

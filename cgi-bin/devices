@@ -2,7 +2,16 @@
 echo "Content-Type: text/html; charset=utf-8"
 echo ""
 ROUTER_TIME=$(date '+%Y-%m-%dT%H:%M:%S')
-echo "<html><head><title>Устройства</title><meta charset='utf-8'><meta http-equiv='refresh' content='30'>"
+THEME=$(echo "$QUERY_STRING" | sed -n 's/.*theme=\([^&]*\).*/\1/p')
+if [ "$THEME" = "dark" ]; then
+    BODY_CLASS="dark"
+    BG="#1e1e2e"
+else
+    BODY_CLASS="light"
+    BG="#f5f5f5"
+fi
+echo "<html><head><title>RusControl</title><meta charset='utf-8'>"
+echo "<style>html,body{background:${BG};margin:0}</style>"
 echo "<script>"
 echo "var serverTime = new Date('${ROUTER_TIME}');"
 echo "var offset = serverTime.getTime() - new Date().getTime();"
@@ -14,34 +23,44 @@ echo "  var s = String(now.getSeconds()).padStart(2,'0');"
 echo "  var d = String(now.getDate()).padStart(2,'0');"
 echo "  var mo = String(now.getMonth()+1).padStart(2,'0');"
 echo "  var y = now.getFullYear();"
-echo "  document.getElementById('clock').textContent = '🕐 ' + h+':'+m+':'+s+' '+d+'.'+mo+'.'+y;"
+echo "  document.getElementById('clock').textContent = h+':'+m+':'+s+' '+d+'.'+mo+'.'+y;"
 echo "}"
 echo "setInterval(updateClock, 1000);"
 echo "window.onload = updateClock;"
 echo "</script>"
 echo "<style>"
-echo "body{font-family:Arial,sans-serif;padding:20px;background:#f5f5f5}"
-echo "table{width:100%;border-collapse:collapse;margin-top:20px;background:white;box-shadow:0 0 10px rgba(0,0,0,0.1)}"
-echo "th,td{text-align:left;padding:12px;border-bottom:1px solid #ddd}"
+echo "body{font-family:Arial,sans-serif;padding:10px;margin:0}"
+echo "body.dark{background:#1e1e2e;color:#cdd6f4}"
+echo "body.light{background:#f5f5f5;color:#333}"
+echo "table{width:100%;border-collapse:collapse;margin-top:10px;box-shadow:0 0 10px rgba(0,0,0,0.1)}"
+echo ".light table{background:white}"
+echo ".dark table{background:#313244}"
+echo "th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #ddd;font-size:0.9em;white-space:nowrap}"
+echo ".dark th,.dark td{border-bottom:1px solid #45475a}"
 echo "th{background:#f2f2f2}"
+echo ".dark th{background:#45475a}"
 echo "tr:hover{background:#f9f9f9}"
+echo ".dark tr:hover{background:#45475a}"
 echo ".blocked{background:#ffe0e0}"
-echo ".btn-block{color:white;background:#d00;padding:6px 14px;border-radius:4px;text-decoration:none}"
-echo ".btn-unblock{color:white;background:#090;padding:6px 14px;border-radius:4px;text-decoration:none}"
-echo ".btn-nav{color:white;background:#0066cc;padding:8px 16px;border-radius:4px;text-decoration:none;margin-right:8px}"
-echo ".btn-danger{color:white;background:#d00;padding:8px 16px;border-radius:4px;text-decoration:none}"
-echo ".btn-success{color:white;background:#090;padding:8px 16px;border-radius:4px;text-decoration:none}"
-echo ".mode-box{background:white;padding:15px;border-radius:8px;box-shadow:0 0 10px rgba(0,0,0,0.1);margin:15px 0}"
+echo ".dark .blocked{background:#45171a}"
+echo ".btn-block{color:white;background:#d00;padding:4px 10px;border-radius:4px;text-decoration:none;font-size:0.85em;display:inline-block}"
+echo ".btn-unblock{color:white;background:#090;padding:4px 10px;border-radius:4px;text-decoration:none;font-size:0.85em;display:inline-block}"
+echo ".btn-refresh{color:white;background:#0066cc;padding:6px 12px;border-radius:4px;text-decoration:none;font-size:0.85em;display:inline-block}"
+echo ".btn-danger{color:white;background:#d00;padding:6px 12px;border-radius:4px;text-decoration:none;font-size:0.85em;display:inline-block}"
+echo ".btn-success{color:white;background:#090;padding:6px 12px;border-radius:4px;text-decoration:none;font-size:0.85em;display:inline-block}"
+echo ".mode-box{padding:10px;border-radius:8px;box-shadow:0 0 10px rgba(0,0,0,0.1);margin:10px 0}"
+echo ".light .mode-box{background:white}"
+echo ".dark .mode-box{background:#313244}"
 echo ".header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap}"
-echo ".header h1{margin:0}"
-echo ".time-box{background:#333;color:#0f0;padding:8px 16px;border-radius:8px;font-family:monospace;font-size:1.1em}"
-echo ".warn{color:#d00;font-size:0.85em;display:block;margin-top:10px}"
-echo "</style></head><body>"
+echo ".header h1{margin:0;font-size:1.3em}"
+echo ".time-box{background:#333;color:#0f0;padding:6px 12px;border-radius:8px;font-family:monospace;font-size:1em}"
+echo ".warn{color:#d00;font-size:0.8em;display:block;margin-top:8px}"
+echo "</style></head><body class='${BODY_CLASS}'>"
 echo "<div class='header'>"
 echo "<h1>📡 Устройства в сети</h1>"
-echo "<div class='time-box' id='clock'>🕐 загрузка...</div>"
+echo "<div class='time-box' id='clock'>загрузка...</div>"
 echo "</div>"
-echo "<p style='margin-top:15px'><a href='/cgi-bin/devices' class='btn-nav'>🔄 Обновить</a><a href='/cgi-bin/schedule' class='btn-nav'>⏰ Расписание</a><a href='/cgi-bin/whitelist' class='btn-nav'>⚪ Белый список</a></p>"
+echo "<p style='margin-top:10px'><a href='/cgi-bin/devices?theme=${THEME}' class='btn-refresh'>🔄 Обновить</a></p>"
 
 FIRST_IFACE=$(uci show wireless | grep "=wifi-iface" | head -1 | cut -d= -f1)
 MACFILTER=$(uci get "${FIRST_IFACE}.macfilter" 2>/dev/null)
@@ -60,7 +79,7 @@ echo "</div>"
 
 BLOCKED_MACS=$(uci get "${FIRST_IFACE}.maclist" 2>/dev/null)
 
-echo "<h2>📶 Подключены к WiFi</h2>"
+echo "<h2 style='font-size:1.1em'>📶 Подключены к WiFi</h2>"
 echo "<table><tr><th>MAC</th><th>Сеть</th><th>Имя</th><th>IP</th><th>Статус</th><th>Действие</th></tr>"
 for ap in $(ubus list | grep hostapd); do
     IFACE=$(echo "$ap" | sed 's/hostapd\.//')
@@ -73,18 +92,18 @@ for ap in $(ubus list | grep hostapd); do
         [ -z "$IP" ] && IP="—"
         IS_WHITE=""
         grep -qi "$mac_lower" /etc/wifi_whitelist 2>/dev/null && IS_WHITE=" ⚪"
-        echo "<tr><td>$mac_lower</td><td>$SSID</td><td>$NAME</td><td>$IP</td><td>✅ Активен${IS_WHITE}</td><td><a href='/cgi-bin/block?mac=$mac_lower' class='btn-block'>⛔ Заблокировать</a></td></tr>"
+        echo "<tr><td>$mac_lower</td><td>$SSID</td><td>$NAME</td><td>$IP</td><td>✅${IS_WHITE}</td><td><a href='/cgi-bin/block?mac=$mac_lower' class='btn-block'>⛔ Блок</a></td></tr>"
     done
 done
 echo "</table>"
 
 if [ "$MACFILTER" = "deny" ] && [ -n "$BLOCKED_MACS" ]; then
-    echo "<h2>🚫 Заблокированные</h2>"
+    echo "<h2 style='font-size:1.1em'>🚫 Заблокированные</h2>"
     echo "<table><tr><th>MAC</th><th>Имя</th><th>Действие</th></tr>"
     for mac in $BLOCKED_MACS; do
         NAME=$(grep -i "$mac" /tmp/dhcp.leases | awk '{print $4}')
         [ -z "$NAME" ] || [ "$NAME" = "*" ] && NAME="—"
-        echo "<tr class='blocked'><td>$mac</td><td>$NAME</td><td><a href='/cgi-bin/unblock?mac=$mac' class='btn-unblock'>✅ Разблокировать</a></td></tr>"
+        echo "<tr class='blocked'><td>$mac</td><td>$NAME</td><td><a href='/cgi-bin/unblock?mac=$mac' class='btn-unblock'>✅ Разблок</a></td></tr>"
     done
     echo "</table>"
 fi

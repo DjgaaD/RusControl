@@ -1,53 +1,62 @@
 #!/bin/sh
 echo "Content-Type: text/html; charset=utf-8"
 echo ""
-METHOD="$REQUEST_METHOD"
 ACTION=$(echo "$QUERY_STRING" | sed -n 's/.*action=\([^&]*\).*/\1/p')
 MAC=$(echo "$QUERY_STRING" | sed -n 's/.*mac=\([^&]*\).*/\1/p')
-
+THEME=$(echo "$QUERY_STRING" | sed -n 's/.*theme=\([^&]*\).*/\1/p')
 if [ "$ACTION" = "add" ] && [ -n "$MAC" ]; then
     echo "$MAC" >> /etc/wifi_whitelist
     sort -u /etc/wifi_whitelist -o /etc/wifi_whitelist
 fi
-
 if [ "$ACTION" = "del" ] && [ -n "$MAC" ]; then
     sed -i "/$MAC/d" /etc/wifi_whitelist
 fi
-
+if [ "$THEME" = "dark" ]; then
+    BODY_CLASS="dark"
+    BG="#1e1e2e"
+else
+    BODY_CLASS="light"
+    BG="#f5f5f5"
+fi
 echo "<html><head><title>Белый список</title><meta charset='utf-8'>"
+echo "<style>html,body{background:${BG};margin:0}</style>"
 echo "<style>"
-echo "body{font-family:Arial,sans-serif;padding:20px;background:#f5f5f5}"
-echo "table{border-collapse:collapse;margin:10px 0;background:white;box-shadow:0 0 10px rgba(0,0,0,0.1)}"
-echo "th,td{padding:10px;border:1px solid #ddd;text-align:left}"
+echo "body{font-family:Arial,sans-serif;padding:10px;margin:0}"
+echo "body.dark{background:#1e1e2e;color:#cdd6f4}"
+echo "body.light{background:#f5f5f5;color:#333}"
+echo "table{border-collapse:collapse;margin:10px 0;box-shadow:0 0 10px rgba(0,0,0,0.1);width:100%}"
+echo ".light table{background:white}"
+echo ".dark table{background:#313244}"
+echo "th,td{padding:8px 10px;border:1px solid #ddd;text-align:left;font-size:0.9em}"
+echo ".dark th,.dark td{border:1px solid #45475a}"
 echo "th{background:#f2f2f2}"
-echo ".form-box{background:white;padding:20px;border-radius:8px;box-shadow:0 0 10px rgba(0,0,0,0.1);margin:20px 0;max-width:500px}"
-echo ".del-btn{color:white;background:#d00;padding:4px 10px;border-radius:4px;text-decoration:none;font-size:0.85em}"
-echo ".add-btn{color:white;background:#090;padding:4px 10px;border-radius:4px;text-decoration:none;font-size:0.85em}"
-echo "</style></head><body>"
-echo "<h1>⚪ Белый список</h1>"
-echo "<p><a href='/cgi-bin/devices'>← Назад к устройствам</a> | <a href='/cgi-bin/schedule'>⏰ Расписание</a></p>"
-echo "<p>Устройства из белого списка <strong>не блокируются</strong> общими правилами и расписанием 'Все устройства'</p>"
-
-echo "<h2>Добавить из подключённых</h2>"
+echo ".dark th{background:#45475a}"
+echo ".del-btn{color:white;background:#d00;padding:4px 8px;border-radius:4px;text-decoration:none;font-size:0.85em}"
+echo ".add-btn{color:white;background:#090;padding:4px 8px;border-radius:4px;text-decoration:none;font-size:0.85em}"
+echo ".light .white-row{background:#e0ffe0;color:#333}"
+echo ".dark .white-row{background:#2a4a2e;color:#a6e3a1}"
+echo "</style></head><body class='${BODY_CLASS}'>"
+echo "<h1 style='font-size:1.3em'>⚪ Белый список</h1>"
+echo "<p style='font-size:0.9em'>Устройства из белого списка <strong>не блокируются</strong> общими правилами</p>"
+echo "<h2 style='font-size:1.1em'>Подключённые</h2>"
 echo "<table><tr><th>MAC</th><th>Имя</th><th>IP</th><th>Действие</th></tr>"
 while IFS=' ' read -r ts mac ip name rest; do
     [ "$name" = "*" ] && name="—"
     if grep -qi "$mac" /etc/wifi_whitelist 2>/dev/null; then
-        echo "<tr style='background:#e0ffe0'><td>$mac</td><td>$name</td><td>$ip</td><td>✅ В белом списке</td></tr>"
+        echo "<tr class='white-row'><td>$mac</td><td>$name</td><td>$ip</td><td>✅ В списке</td></tr>"
     else
-        echo "<tr><td>$mac</td><td>$name</td><td>$ip</td><td><a href='/cgi-bin/whitelist?action=add&mac=$mac' class='add-btn'>➕ Добавить</a></td></tr>"
+        echo "<tr><td>$mac</td><td>$name</td><td>$ip</td><td><a href='/cgi-bin/whitelist?action=add&mac=$mac&theme=${THEME}' class='add-btn'>➕ Добавить</a></td></tr>"
     fi
 done < /tmp/dhcp.leases
 echo "</table>"
-
-echo "<h2>Текущий белый список</h2>"
+echo "<h2 style='font-size:1.1em'>Текущий белый список</h2>"
 if [ -s /etc/wifi_whitelist ]; then
     echo "<table><tr><th>MAC</th><th>Имя</th><th>Действие</th></tr>"
     while read mac; do
         [ -z "$mac" ] && continue
         NAME=$(grep -i "$mac" /tmp/dhcp.leases | awk '{print $4}')
         [ -z "$NAME" ] || [ "$NAME" = "*" ] && NAME="—"
-        echo "<tr><td>$mac</td><td>$NAME</td><td><a href='/cgi-bin/whitelist?action=del&mac=$mac' class='del-btn'>🗑️ Удалить</a></td></tr>"
+        echo "<tr><td>$mac</td><td>$NAME</td><td><a href='/cgi-bin/whitelist?action=del&mac=$mac&theme=${THEME}' class='del-btn'>🗑️ Удалить</a></td></tr>"
     done < /etc/wifi_whitelist
     echo "</table>"
 else

@@ -2,7 +2,6 @@
 echo "Content-Type: text/html; charset=utf-8"
 echo ""
 METHOD="$REQUEST_METHOD"
-
 if [ "$METHOD" = "POST" ]; then
     read -r POST_DATA
     MAC=$(echo "$POST_DATA" | sed -n 's/.*mac=\([^&]*\).*/\1/p')
@@ -19,11 +18,9 @@ if [ "$METHOD" = "POST" ]; then
     echo "$POST_DATA" | grep -q "d_sat=on" && DAYS="${DAYS}6,"
     echo "$POST_DATA" | grep -q "d_sun=on" && DAYS="${DAYS}0,"
     DAYS=$(echo "$DAYS" | sed 's/,$//')
-
     if [ -n "$MAC" ] && [ -n "$HOUR_ON" ] && [ -n "$HOUR_OFF" ] && [ -n "$DAYS" ]; then
         sed -i "/#SCHED_${MAC}/d" /etc/crontabs/root 2>/dev/null
         touch /etc/crontabs/root
-
         if [ "$MAC" = "ALL" ]; then
             echo "${MIN_ON} ${HOUR_ON} * * ${DAYS} /www/cgi-bin/wifi_block_all #SCHED_${MAC}" >> /etc/crontabs/root
             echo "${MIN_OFF} ${HOUR_OFF} * * ${DAYS} /www/cgi-bin/wifi_unblock_all #SCHED_${MAC}" >> /etc/crontabs/root
@@ -34,45 +31,79 @@ if [ "$METHOD" = "POST" ]; then
         /etc/init.d/cron restart
     fi
 fi
-
-ROUTER_TIME=$(date '+%H:%M:%S %d.%m.%Y')
+ROUTER_TIME=$(date '+%Y-%m-%dT%H:%M:%S')
+THEME=$(echo "$QUERY_STRING" | sed -n 's/.*theme=\([^&]*\).*/\1/p')
+if [ "$THEME" = "dark" ]; then
+    BODY_CLASS="dark"
+    BG="#1e1e2e"
+else
+    BODY_CLASS="light"
+    BG="#f5f5f5"
+fi
 echo "<html><head><title>Расписание</title><meta charset='utf-8'>"
+echo "<style>html,body{background:${BG};margin:0}</style>"
+echo "<script>"
+echo "var serverTime = new Date('${ROUTER_TIME}');"
+echo "var offset = serverTime.getTime() - new Date().getTime();"
+echo "function updateClock() {"
+echo "  var now = new Date(new Date().getTime() + offset);"
+echo "  var h = String(now.getHours()).padStart(2,'0');"
+echo "  var m = String(now.getMinutes()).padStart(2,'0');"
+echo "  var s = String(now.getSeconds()).padStart(2,'0');"
+echo "  var d = String(now.getDate()).padStart(2,'0');"
+echo "  var mo = String(now.getMonth()+1).padStart(2,'0');"
+echo "  var y = now.getFullYear();"
+echo "  document.getElementById('clock').textContent = h+':'+m+':'+s+' '+d+'.'+mo+'.'+y;"
+echo "}"
+echo "setInterval(updateClock, 1000);"
+echo "window.onload = updateClock;"
+echo "</script>"
 echo "<style>"
-echo "body{font-family:Arial,sans-serif;padding:20px;background:#f5f5f5}"
-echo "table{border-collapse:collapse;margin:10px 0;background:white;box-shadow:0 0 10px rgba(0,0,0,0.1);width:100%}"
-echo "th,td{padding:10px;border:1px solid #ddd;text-align:center}"
+echo "body{font-family:Arial,sans-serif;padding:10px;margin:0}"
+echo "body.dark{background:#1e1e2e;color:#cdd6f4}"
+echo "body.light{background:#f5f5f5;color:#333}"
+echo "table{border-collapse:collapse;margin:10px 0;box-shadow:0 0 10px rgba(0,0,0,0.1);width:100%}"
+echo ".light table{background:white}"
+echo ".dark table{background:#313244}"
+echo "th,td{padding:8px 10px;border:1px solid #ddd;text-align:center;font-size:0.9em}"
+echo ".dark th,.dark td{border:1px solid #45475a}"
 echo "th{background:#f2f2f2}"
-echo ".form-box{background:white;padding:20px;border-radius:8px;box-shadow:0 0 10px rgba(0,0,0,0.1);margin:20px 0;max-width:600px}"
-echo "select,input[type=submit],input[type=number]{padding:8px;margin:4px;border-radius:4px;border:1px solid #ccc}"
-echo "input[type=number]{width:60px;text-align:center}"
-echo "input[type=submit]{background:#0066cc;color:white;border:none;cursor:pointer;padding:10px 20px}"
-echo "label{margin-right:10px}"
-echo ".del-btn{color:white;background:#d00;padding:4px 10px;border-radius:4px;text-decoration:none;font-size:0.85em}"
-echo ".btn-nav{color:white;background:#0066cc;padding:8px 16px;border-radius:4px;text-decoration:none;margin-right:8px}"
-echo ".time-box{background:#333;color:#0f0;padding:10px 20px;border-radius:8px;display:inline-block;font-family:monospace;font-size:1.3em;margin:10px 0}"
-echo "</style></head><body>"
+echo ".dark th{background:#45475a}"
+echo ".form-box{padding:15px;border-radius:8px;box-shadow:0 0 10px rgba(0,0,0,0.1);margin:15px 0;max-width:600px}"
+echo ".light .form-box{background:white}"
+echo ".dark .form-box{background:#313244}"
+echo "select,input[type=submit],input[type=number]{padding:6px;margin:3px;border-radius:4px;border:1px solid #ccc}"
+echo ".dark select,.dark input[type=number]{background:#45475a;color:#cdd6f4;border:1px solid #585b70}"
+echo "input[type=number]{width:55px;text-align:center}"
+echo "input[type=submit]{background:#0066cc;color:white;border:none;cursor:pointer;padding:8px 16px}"
+echo "label{margin-right:8px}"
+echo ".del-btn{color:white;background:#d00;padding:4px 8px;border-radius:4px;text-decoration:none;font-size:0.85em}"
+echo ".header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap}"
+echo ".header h1{margin:0;font-size:1.3em}"
+echo ".time-box{background:#333;color:#0f0;padding:6px 12px;border-radius:8px;font-family:monospace;font-size:1em}"
+echo "</style></head><body class='${BODY_CLASS}'>"
+echo "<div class='header'>"
 echo "<h1>⏰ Расписание блокировки</h1>"
-echo "<div class='time-box'>🕐 $ROUTER_TIME</div>"
-echo "<p><a href='/cgi-bin/devices' class='btn-nav'>← Устройства</a><a href='/cgi-bin/whitelist' class='btn-nav'>⚪ Белый список</a></p>"
-
+echo "<div class='time-box' id='clock'>загрузка...</div>"
+echo "</div>"
 echo "<div class='form-box'>"
-echo "<h3>Добавить расписание</h3>"
-echo "<form method='POST' action='/cgi-bin/schedule'>"
+echo "<h3 style='margin-top:0'>Добавить расписание</h3>"
+echo "<form method='POST' action='/cgi-bin/schedule?theme=${THEME}'>"
 echo "<p><strong>Устройство:</strong><br>"
-echo "<select name='mac'>"
+echo "<select name='mac' style='width:100%'>"
 echo "<option value='ALL'>🌐 ВСЕ УСТРОЙСТВА (кроме белого списка)</option>"
 while IFS=' ' read -r ts mac ip name rest; do
     [ "$name" = "*" ] && name="$mac"
     echo "<option value='$mac'>$name ($mac)</option>"
 done < /tmp/dhcp.leases
 echo "</select></p>"
-echo "<p><strong>Блокировать с:</strong><br>"
-echo "<input type='number' name='hour_on' min='0' max='23' value='22' style='width:60px'> ч"
-echo "<input type='number' name='min_on' min='0' max='59' value='00' style='width:60px'> мин</p>"
-echo "<p><strong>Разблокировать в:</strong><br>"
-echo "<input type='number' name='hour_off' min='0' max='23' value='07' style='width:60px'> ч"
-echo "<input type='number' name='min_off' min='0' max='59' value='00' style='width:60px'> мин</p>"
-echo "<p><strong>Дни недели:</strong><br>"
+echo "<p><strong>Блокировать с:</strong> "
+echo "<input type='number' name='hour_on' min='0' max='23' value='22'> ч"
+echo "<input type='number' name='min_on' min='0' max='59' value='00'> мин</p>"
+echo "<p><strong>Разблокировать в:</strong> "
+echo "<input type='number' name='hour_off' min='0' max='23' value='07'> ч"
+echo "<input type='number' name='min_off' min='0' max='59' value='00'> мин</p>"
+echo "<p><strong>Дни:</strong><br>"
 echo "<label><input type='checkbox' name='d_mon' checked> Пн</label>"
 echo "<label><input type='checkbox' name='d_tue' checked> Вт</label>"
 echo "<label><input type='checkbox' name='d_wed' checked> Ср</label>"
@@ -80,21 +111,20 @@ echo "<label><input type='checkbox' name='d_thu' checked> Чт</label>"
 echo "<label><input type='checkbox' name='d_fri' checked> Пт</label>"
 echo "<label><input type='checkbox' name='d_sat' checked> Сб</label>"
 echo "<label><input type='checkbox' name='d_sun' checked> Вс</label></p>"
-echo "<input type='submit' value='💾 Сохранить расписание'>"
+echo "<input type='submit' value='💾 Сохранить'>"
 echo "</form></div>"
-
-echo "<h2>📋 Текущие расписания</h2>"
+echo "<h2 style='font-size:1.1em'>📋 Текущие расписания</h2>"
 if [ -f /etc/crontabs/root ] && grep -q "#SCHED_" /etc/crontabs/root; then
-    echo "<table><tr><th>Устройство</th><th>Время</th><th>Действие</th><th>Дни</th><th>Удалить</th></tr>"
+    echo "<table><tr><th>Устройство</th><th>Время</th><th>Действие</th><th>Дни</th><th>X</th></tr>"
     grep "#SCHED_" /etc/crontabs/root | while read line; do
         MIN=$(echo "$line" | awk '{print $1}')
         HOUR=$(echo "$line" | awk '{print $2}')
         CRON_DAYS=$(echo "$line" | awk '{print $5}')
         SMAC=$(echo "$line" | sed -n 's/.*#SCHED_\(.*\)/\1/p')
         if echo "$line" | grep -q "unblock"; then
-            ACT="✅ Разблокировка"
+            ACT="✅ Разблок"
         else
-            ACT="⛔ Блокировка"
+            ACT="⛔ Блок"
         fi
         if [ "$SMAC" = "ALL" ]; then
             DEV_NAME="🌐 ВСЕ"
