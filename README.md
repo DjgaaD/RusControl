@@ -28,11 +28,5 @@
 
 
 
-\### Быстрая установка (одна команда):
-
-
-
-```sh
-
-wget -O /tmp/install.sh https://raw.githubusercontent.com/DjgaaD/RusControl/main/install.sh \&\& sh /tmp/install.sh
+\### Быстрая установка через Система - Пакеты - Загрузить пакет - Установить
 
