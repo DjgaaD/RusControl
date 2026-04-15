@@ -1,0 +1,23 @@
+#!/bin/sh
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+. "${SCRIPT_DIR}/lib_ruscontrol.sh"
+
+MAC="$1"
+[ "$MAC" = "ALL" ] && exit 1
+MAC=$(normalize_mac "$MAC")
+is_valid_mac "$MAC" || exit 1
+grep -qix "$MAC" /etc/wifi_whitelist 2>/dev/null && exit 0
+logger -t wifi_schedule "BLOCK $MAC"
+for iface in $(uci show wireless | grep "=wifi-iface" | cut -d= -f1); do
+    uci set "${iface}.macfilter=deny"
+    uci add_list "${iface}.maclist=${MAC}"
+done
+uci commit wireless
+wifi reload >/dev/null 2>&1
+for ap in $(ubus list | grep hostapd); do
+    ubus call "$ap" del_client '{"addr":"'"$MAC"'","reason":1,"deauth":true}' 2>/dev/null
+done
+for iface in $(hostapd_ifaces); do
+    hostapd_cli -i "$iface" deny_acl ADD_MAC "$MAC" 2>/dev/null
+    ubus call "hostapd.${iface}" del_client '{"addr":"'"$MAC"'","reason":1,"deauth":true}' 2>/dev/null
+done

@@ -1,0 +1,14 @@
+#!/bin/sh
+logger -t wifi_schedule "BLOCK ALL triggered"
+for iface in $(uci show wireless | grep "=wifi-iface" | cut -d= -f1); do
+    uci set "${iface}.macfilter=allow"
+    uci delete "${iface}.maclist" 2>/dev/null
+    if [ -f /etc/wifi_whitelist ]; then
+        while read mac; do
+            [ -n "$mac" ] && uci add_list "${iface}.maclist=${mac}"
+        done < /etc/wifi_whitelist
+    fi
+done
+uci commit wireless
+wifi reload
+logger -t wifi_schedule "BLOCK ALL done"

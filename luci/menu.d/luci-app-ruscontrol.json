@@ -1,0 +1,38 @@
+{
+    "admin/network/ruscontrol": {
+        "title": "RusControl",
+        "order": 90,
+        "action": {
+            "type": "view",
+            "path": "ruscontrol/devices"
+        },
+        "depends": {
+            "acl": ["luci-app-ruscontrol"],
+            "uci": {}
+        }
+    },
+    "admin/network/ruscontrol/devices": {
+        "title": "Устройства",
+        "order": 1,
+        "action": {
+            "type": "view",
+            "path": "ruscontrol/devices"
+        }
+    },
+    "admin/network/ruscontrol/schedule": {
+        "title": "Расписание",
+        "order": 2,
+        "action": {
+            "type": "view",
+            "path": "ruscontrol/schedule"
+        }
+    },
+    "admin/network/ruscontrol/whitelist": {
+        "title": "Белый список",
+        "order": 3,
+        "action": {
+            "type": "view",
+            "path": "ruscontrol/whitelist"
+        }
+    }
+}

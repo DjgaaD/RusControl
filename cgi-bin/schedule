@@ -1,0 +1,156 @@
+#!/bin/sh
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+. "${SCRIPT_DIR}/lib_ruscontrol.sh"
+
+echo "Content-Type: text/html; charset=utf-8"
+echo ""
+THEME=$(get_query_param "theme")
+[ "$THEME" = "dark" ] || THEME="light"
+METHOD="$REQUEST_METHOD"
+if [ "$METHOD" = "POST" ]; then
+    read -r POST_DATA
+    CSRF_TOKEN=$(post_param "$POST_DATA" "csrf_token")
+    MAC=$(post_param "$POST_DATA" "mac")
+    [ "$MAC" = "ALL" ] || MAC=$(normalize_mac "$MAC")
+    HOUR_ON=$(post_param "$POST_DATA" "hour_on")
+    MIN_ON=$(post_param "$POST_DATA" "min_on")
+    HOUR_OFF=$(post_param "$POST_DATA" "hour_off")
+    MIN_OFF=$(post_param "$POST_DATA" "min_off")
+    DAYS=""
+    echo "$POST_DATA" | grep -q "d_mon=on" && DAYS="${DAYS}1,"
+    echo "$POST_DATA" | grep -q "d_tue=on" && DAYS="${DAYS}2,"
+    echo "$POST_DATA" | grep -q "d_wed=on" && DAYS="${DAYS}3,"
+    echo "$POST_DATA" | grep -q "d_thu=on" && DAYS="${DAYS}4,"
+    echo "$POST_DATA" | grep -q "d_fri=on" && DAYS="${DAYS}5,"
+    echo "$POST_DATA" | grep -q "d_sat=on" && DAYS="${DAYS}6,"
+    echo "$POST_DATA" | grep -q "d_sun=on" && DAYS="${DAYS}0,"
+    DAYS=$(echo "$DAYS" | sed 's/,$//')
+    if verify_csrf_token "$CSRF_TOKEN" && is_valid_mac_or_all "$MAC" && is_valid_hour "$HOUR_ON" && is_valid_hour "$HOUR_OFF" && \
+       is_valid_minute "$MIN_ON" && is_valid_minute "$MIN_OFF" && is_valid_days "$DAYS"; then
+        safe_remove_sched "$MAC"
+        touch /etc/crontabs/root
+        if [ "$MAC" = "ALL" ]; then
+            echo "${MIN_ON} ${HOUR_ON} * * ${DAYS} /www/cgi-bin/wifi_block_all #SCHED_${MAC}" >> /etc/crontabs/root
+            echo "${MIN_OFF} ${HOUR_OFF} * * ${DAYS} /www/cgi-bin/wifi_unblock_all #SCHED_${MAC}" >> /etc/crontabs/root
+        else
+            echo "${MIN_ON} ${HOUR_ON} * * ${DAYS} /www/cgi-bin/wifi_block ${MAC} #SCHED_${MAC}" >> /etc/crontabs/root
+            echo "${MIN_OFF} ${HOUR_OFF} * * ${DAYS} /www/cgi-bin/wifi_unblock ${MAC} #SCHED_${MAC}" >> /etc/crontabs/root
+        fi
+        /etc/init.d/cron restart
+    fi
+fi
+ROUTER_TIME=$(date '+%Y-%m-%dT%H:%M:%S')
+if [ "$THEME" = "dark" ]; then
+    BODY_CLASS="dark"
+    BG="#1e1e2e"
+else
+    BODY_CLASS="light"
+    BG="#f5f5f5"
+fi
+echo "<html><head><title>Расписание</title><meta charset='utf-8'>"
+echo "<style>html,body{background:${BG};margin:0}</style>"
+echo "<script>"
+echo "var serverTime = new Date('${ROUTER_TIME}');"
+echo "var offset = serverTime.getTime() - new Date().getTime();"
+echo "function updateClock() {"
+echo "  var now = new Date(new Date().getTime() + offset);"
+echo "  var h = String(now.getHours()).padStart(2,'0');"
+echo "  var m = String(now.getMinutes()).padStart(2,'0');"
+echo "  var s = String(now.getSeconds()).padStart(2,'0');"
+echo "  var d = String(now.getDate()).padStart(2,'0');"
+echo "  var mo = String(now.getMonth()+1).padStart(2,'0');"
+echo "  var y = now.getFullYear();"
+echo "  document.getElementById('clock').textContent = h+':'+m+':'+s+' '+d+'.'+mo+'.'+y;"
+echo "}"
+echo "setInterval(updateClock, 1000);"
+echo "window.onload = updateClock;"
+echo "</script>"
+echo "<style>"
+echo "body{font-family:Arial,sans-serif;padding:10px;margin:0}"
+echo "body.dark{background:#1e1e2e;color:#cdd6f4}"
+echo "body.light{background:#f5f5f5;color:#333}"
+echo "table{border-collapse:collapse;margin:10px 0;box-shadow:0 0 10px rgba(0,0,0,0.1);width:100%}"
+echo ".light table{background:white}"
+echo ".dark table{background:#313244}"
+echo "th,td{padding:8px 10px;border:1px solid #ddd;text-align:center;font-size:0.9em}"
+echo ".dark th,.dark td{border:1px solid #45475a}"
+echo "th{background:#f2f2f2}"
+echo ".dark th{background:#45475a}"
+echo ".form-box{padding:15px;border-radius:8px;box-shadow:0 0 10px rgba(0,0,0,0.1);margin:15px 0;max-width:600px}"
+echo ".light .form-box{background:white}"
+echo ".dark .form-box{background:#313244}"
+echo "select,input[type=submit],input[type=number]{padding:6px;margin:3px;border-radius:4px;border:1px solid #ccc}"
+echo ".dark select,.dark input[type=number]{background:#45475a;color:#cdd6f4;border:1px solid #585b70}"
+echo "input[type=number]{width:55px;text-align:center}"
+echo "input[type=submit]{background:#0066cc;color:white;border:none;cursor:pointer;padding:8px 16px}"
+echo "label{margin-right:8px}"
+echo ".del-btn{color:white;background:#d00;padding:4px 8px;border-radius:4px;text-decoration:none;font-size:0.85em}"
+echo ".header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap}"
+echo ".header h1{margin:0;font-size:1.3em}"
+echo ".time-box{background:#333;color:#0f0;padding:6px 12px;border-radius:8px;font-family:monospace;font-size:1em}"
+echo "</style></head><body class='${BODY_CLASS}'>"
+echo "<div class='header'>"
+echo "<h1>⏰ Расписание блокировки</h1>"
+echo "<div class='time-box' id='clock'>загрузка...</div>"
+echo "</div>"
+echo "<div class='form-box'>"
+CSRF_TOKEN=$(ensure_csrf_token)
+echo "<h3 style='margin-top:0'>Добавить расписание</h3>"
+echo "<form method='POST' action='/cgi-bin/schedule?theme=${THEME}'>"
+echo "<input type='hidden' name='csrf_token' value='$(html_escape "$CSRF_TOKEN")'>"
+echo "<p><strong>Устройство:</strong><br>"
+echo "<select name='mac' style='width:100%'>"
+echo "<option value='ALL'>🌐 ВСЕ УСТРОЙСТВА (кроме белого списка)</option>"
+while IFS=' ' read -r ts mac ip name rest; do
+    [ "$name" = "*" ] && name="$mac"
+    safe_mac=$(html_escape "$(normalize_mac "$mac")")
+    safe_name=$(html_escape "$name")
+    echo "<option value='$safe_mac'>$safe_name ($safe_mac)</option>"
+done < /tmp/dhcp.leases
+echo "</select></p>"
+echo "<p><strong>Блокировать с:</strong> "
+echo "<input type='number' name='hour_on' min='0' max='23' value='22'> ч"
+echo "<input type='number' name='min_on' min='0' max='59' value='00'> мин</p>"
+echo "<p><strong>Разблокировать в:</strong> "
+echo "<input type='number' name='hour_off' min='0' max='23' value='07'> ч"
+echo "<input type='number' name='min_off' min='0' max='59' value='00'> мин</p>"
+echo "<p><strong>Дни:</strong><br>"
+echo "<label><input type='checkbox' name='d_mon' checked> Пн</label>"
+echo "<label><input type='checkbox' name='d_tue' checked> Вт</label>"
+echo "<label><input type='checkbox' name='d_wed' checked> Ср</label>"
+echo "<label><input type='checkbox' name='d_thu' checked> Чт</label>"
+echo "<label><input type='checkbox' name='d_fri' checked> Пт</label>"
+echo "<label><input type='checkbox' name='d_sat' checked> Сб</label>"
+echo "<label><input type='checkbox' name='d_sun' checked> Вс</label></p>"
+echo "<input type='submit' value='💾 Сохранить'>"
+echo "</form></div>"
+echo "<h2 style='font-size:1.1em'>📋 Текущие расписания</h2>"
+if [ -f /etc/crontabs/root ] && grep -q "#SCHED_" /etc/crontabs/root; then
+    echo "<table><tr><th>Устройство</th><th>Время</th><th>Действие</th><th>Дни</th><th>X</th></tr>"
+    grep "#SCHED_" /etc/crontabs/root | while read line; do
+        MIN=$(echo "$line" | awk '{print $1}')
+        HOUR=$(echo "$line" | awk '{print $2}')
+        CRON_DAYS=$(echo "$line" | awk '{print $5}')
+        SMAC=$(echo "$line" | sed -n 's/.*#SCHED_\(.*\)/\1/p')
+        if echo "$line" | grep -q "unblock"; then
+            ACT="✅ Разблок"
+        else
+            ACT="⛔ Блок"
+        fi
+        if [ "$SMAC" = "ALL" ]; then
+            DEV_NAME="🌐 ВСЕ"
+        else
+            DEV_NAME=$(grep -i "$SMAC" /tmp/dhcp.leases | awk '{print $4}')
+            [ -z "$DEV_NAME" ] || [ "$DEV_NAME" = "*" ] && DEV_NAME="$SMAC"
+        fi
+        DAYS_TEXT=$(echo "$CRON_DAYS" | sed 's/0/Вс/g;s/1/Пн/g;s/2/Вт/g;s/3/Ср/g;s/4/Чт/g;s/5/Пт/g;s/6/Сб/g')
+        SAFE_DEV_NAME=$(html_escape "$DEV_NAME")
+        SAFE_DAYS_TEXT=$(html_escape "$DAYS_TEXT")
+        SAFE_SMAC=$(html_escape "$SMAC")
+        printf "<tr><td>%s</td><td>%02d:%02d</td><td>%s</td><td>%s</td><td><form method='POST' action='/cgi-bin/schedule_del?theme=%s' style='display:inline;margin:0'><input type='hidden' name='csrf_token' value='%s'><input type='hidden' name='mac' value='%s'><button type='submit' class='del-btn'>🗑️</button></form></td></tr>\n" "$SAFE_DEV_NAME" "$HOUR" "$MIN" "$ACT" "$SAFE_DAYS_TEXT" "$THEME" "$(html_escape "$CSRF_TOKEN")" "$SAFE_SMAC"
+    done
+    echo "</table>"
+else
+    echo "<p>Нет активных расписаний</p>"
+fi
+echo "</body></html>"
