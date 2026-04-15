@@ -130,9 +130,15 @@ install_profile() {
     /etc/init.d/rpcd restart >/dev/null 2>&1 || true
     /etc/init.d/uhttpd restart >/dev/null 2>&1 || true
 
+    LAN_IP="$(uci get network.lan.ipaddr 2>/dev/null | sed 's#/.*##')"
+    if [ -z "$LAN_IP" ]; then
+        LAN_IP="$(ubus call network.interface.lan status 2>/dev/null | sed -n 's/.*"address":"\([0-9.]*\)".*/\1/p' | head -n1)"
+    fi
+    [ -n "$LAN_IP" ] || LAN_IP="192.168.1.1"
+
     echo ""
     echo "=== Установка завершена! ==="
-    echo "Откройте: http://$(uci get network.lan.ipaddr)/cgi-bin/devices"
+    echo "Откройте: http://${LAN_IP}/cgi-bin/devices"
 }
 
 install_profile "$TARGET_VERSION"
