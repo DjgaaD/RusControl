@@ -49,20 +49,9 @@ chmod +x /tmp/install.sh
 
 ### OpenWrt 24 (`.ipk`)
 
-В репозитории есть сборщик:
+Для обычной установки используйте готовый `.ipk` из релиза:
 
-- `openwrt24/packaging/ipk/build_ipk.sh`
-
-Пример:
-
-```sh
-chmod +x openwrt24/packaging/ipk/build_ipk.sh
-./openwrt24/packaging/ipk/build_ipk.sh 24 1.0.0 1
-```
-
-Будет создан файл:
-
-- `dist/luci-app-ruscontrol-owrt24_<version>-<release>_all.ipk`
+- [Releases](https://github.com/DjgaaD/RusControl/releases)
 
 Установка:
 
