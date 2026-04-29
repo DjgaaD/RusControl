@@ -16,22 +16,6 @@
 
 ## Установка
 
-### OpenWrt 24
-
-```sh
-wget -O /tmp/install_openwrt24.sh https://raw.githubusercontent.com/DjgaaD/RusControl/main/install_openwrt24.sh
-chmod +x /tmp/install_openwrt24.sh
-/tmp/install_openwrt24.sh
-```
-
-### OpenWrt 25
-
-```sh
-wget -O /tmp/install_openwrt25.sh https://raw.githubusercontent.com/DjgaaD/RusControl/main/install_openwrt25.sh
-chmod +x /tmp/install_openwrt25.sh
-/tmp/install_openwrt25.sh
-```
-
 ### Авто-определение версии (рекомендуется)
 
 ```sh
@@ -40,19 +24,11 @@ chmod +x /tmp/install.sh
 /tmp/install.sh auto
 ```
 
-### Быстрое обновление существующей установки
-
-```sh
-wget -O /tmp/install.sh https://raw.githubusercontent.com/DjgaaD/RusControl/main/install.sh
-chmod +x /tmp/install.sh
-/tmp/install.sh auto
-```
+### OpenWrt 24
 
 ## Установка через пакет
 
 Пакетная установка поддерживается только для OpenWrt 24.
-
-### OpenWrt 24 (`.ipk`)
 
 Для обычной установки используйте готовый `.ipk` из релиза:
 
@@ -69,10 +45,16 @@ chmod +x /tmp/install.sh
 ```sh
 opkg install /tmp/luci-app-ruscontrol-owrt24_1.5.0-1_all.ipk
 ```
+или
+```sh
+wget -O /tmp/install_openwrt24.sh https://raw.githubusercontent.com/DjgaaD/RusControl/main/install_openwrt24.sh
+chmod +x /tmp/install_openwrt24.sh
+/tmp/install_openwrt24.sh
+```
 
 ### OpenWrt 25
 
-Для OpenWrt 25 используйте установку через команды:
+Для OpenWrt 25 используйте установку через команды по SSH:
 
 ```sh
 wget -O /tmp/install_openwrt25.sh https://raw.githubusercontent.com/DjgaaD/RusControl/main/install_openwrt25.sh
@@ -80,9 +62,15 @@ chmod +x /tmp/install_openwrt25.sh
 /tmp/install_openwrt25.sh
 ```
 
+### Обновление существующей установки
+
+```sh
+wget -O /tmp/install.sh https://raw.githubusercontent.com/DjgaaD/RusControl/main/install.sh
+chmod +x /tmp/install.sh
+/tmp/install.sh auto
+```
+
 ## Примечания
 
 - `install.sh` поддерживает параметры: `24`, `25`, `auto`.
 - Установщик скачивает файлы с GitHub и автоматически использует fallback на `main`, если версия-ветка недоступна.
-- Для OpenWrt 24 можно использовать как установщик (`install.sh`), так и `.ipk` из релизов.
-- Для OpenWrt 25 рекомендуется установка через `install.sh`/`install_openwrt25.sh`.
