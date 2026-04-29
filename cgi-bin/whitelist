@@ -58,6 +58,7 @@ echo "<table><tr><th>MAC</th><th>Имя</th><th>IP</th><th>Действие</th>
 while IFS=' ' read -r ts mac ip name rest; do
     [ "$name" = "*" ] && name="—"
     mac_norm=$(normalize_mac "$mac")
+    name=$(display_device_name "$mac_norm" "$name")
     safe_mac=$(html_escape "$mac_norm")
     safe_name=$(html_escape "$name")
     safe_ip=$(html_escape "$ip")
@@ -76,6 +77,7 @@ if [ -s /etc/wifi_whitelist ]; then
         mac_norm=$(normalize_mac "$mac")
         NAME=$(grep -i "$mac_norm" /tmp/dhcp.leases | awk '{print $4}')
         [ -z "$NAME" ] || [ "$NAME" = "*" ] && NAME="—"
+        NAME=$(display_device_name "$mac_norm" "$NAME")
         safe_mac=$(html_escape "$mac_norm")
         safe_name=$(html_escape "$NAME")
         echo "<tr><td>$safe_mac</td><td>$safe_name</td><td><form method='POST' action='/cgi-bin/whitelist?theme=${THEME}' class='action-form'><input type='hidden' name='csrf_token' value='$(html_escape "$CSRF_TOKEN")'><input type='hidden' name='action' value='del'><input type='hidden' name='mac' value='$safe_mac'><button type='submit' class='action-btn action-btn-del'>🗑️ Удалить</button></form></td></tr>"

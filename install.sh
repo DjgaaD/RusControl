@@ -109,7 +109,7 @@ install_profile() {
 
     touch /etc/wifi_whitelist
 
-    for f in lib_ruscontrol.sh block unblock devices schedule schedule_del whitelist wifi_block wifi_unblock wifi_block_all wifi_unblock_all block_all_now unblock_all_now; do
+    for f in lib_ruscontrol.sh block unblock devices schedule schedule_del schedule_once_exec whitelist wifi_block wifi_unblock wifi_block_all wifi_unblock_all block_all_now unblock_all_now; do
         download_project_file "cgi-bin/${f}" "/www/cgi-bin/${f}" "$version"
         chmod +x "/www/cgi-bin/${f}"
     done

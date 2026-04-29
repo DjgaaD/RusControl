@@ -59,6 +59,17 @@ safe_remove_sched() {
     mv "$tmp" "$file"
 }
 
+safe_remove_sched_rule_id() {
+    local rule_id="$1"
+    local file="/etc/crontabs/root"
+    local tmp
+
+    [ -f "$file" ] || return 0
+    tmp=$(mktemp) || return 1
+    grep -Fv "#SCHED|${rule_id}|" "$file" > "$tmp" || true
+    mv "$tmp" "$file"
+}
+
 safe_remove_whitelist_mac() {
     local mac="$1"
     local file="/etc/wifi_whitelist"
@@ -68,6 +79,45 @@ safe_remove_whitelist_mac() {
     tmp=$(mktemp) || return 1
     grep -Fivx "$mac" "$file" > "$tmp" || true
     mv "$tmp" "$file"
+}
+
+device_alias_file() {
+    echo "/etc/wifi_device_names"
+}
+
+get_device_alias() {
+    local mac="$1"
+    local file alias
+    file=$(device_alias_file)
+    [ -f "$file" ] || { echo ""; return 0; }
+    alias=$(awk -F '\t' -v m="$mac" 'tolower($1)==tolower(m){print $2; exit}' "$file")
+    printf '%s' "$alias"
+}
+
+set_device_alias() {
+    local mac="$1"
+    local alias="$2"
+    local file tmp
+    file=$(device_alias_file)
+    touch "$file"
+    tmp=$(mktemp) || return 1
+    awk -F '\t' -v m="$mac" 'tolower($1)!=tolower(m){print}' "$file" > "$tmp" || true
+    if [ -n "$alias" ]; then
+        printf '%s\t%s\n' "$mac" "$alias" >> "$tmp"
+    fi
+    mv "$tmp" "$file"
+}
+
+display_device_name() {
+    local mac="$1"
+    local fallback="$2"
+    local alias
+    alias=$(get_device_alias "$mac")
+    if [ -n "$alias" ]; then
+        printf '%s' "$alias"
+        return
+    fi
+    printf '%s' "$fallback"
 }
 
 html_escape() {

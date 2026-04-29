@@ -1,0 +1,27 @@
+#!/bin/sh
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+. "${SCRIPT_DIR}/lib_ruscontrol.sh"
+
+ACTION="$1"
+TARGET="$2"
+RULE_ID="$3"
+
+case "$ACTION" in
+    block)
+        if [ "$TARGET" = "ALL" ]; then
+            /www/cgi-bin/wifi_block_all
+        else
+            /www/cgi-bin/wifi_block "$TARGET"
+        fi
+        ;;
+    unblock)
+        if [ "$TARGET" = "ALL" ]; then
+            /www/cgi-bin/wifi_unblock_all
+        else
+            /www/cgi-bin/wifi_unblock "$TARGET"
+        fi
+        # One-time rule is complete after unblock.
+        safe_remove_sched_rule_id "$RULE_ID"
+        /etc/init.d/cron restart >/dev/null 2>&1 || true
+        ;;
+esac

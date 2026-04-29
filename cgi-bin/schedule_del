@@ -3,7 +3,6 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 . "${SCRIPT_DIR}/lib_ruscontrol.sh"
 
 echo "Content-Type: text/html; charset=utf-8"
-echo ""
 THEME=$(get_query_param "theme")
 [ "$THEME" = "dark" ] || THEME="light"
 if [ "$REQUEST_METHOD" != "POST" ]; then
@@ -12,11 +11,11 @@ if [ "$REQUEST_METHOD" != "POST" ]; then
 fi
 read -r POST_DATA
 CSRF_TOKEN=$(post_param "$POST_DATA" "csrf_token")
-MAC=$(post_param "$POST_DATA" "mac")
-[ "$MAC" = "ALL" ] || MAC=$(normalize_mac "$MAC")
-if verify_csrf_token "$CSRF_TOKEN" && is_valid_mac_or_all "$MAC"; then
-    safe_remove_sched "$MAC"
+RULE_ID=$(post_param "$POST_DATA" "rule_id")
+if verify_csrf_token "$CSRF_TOKEN" && printf '%s' "$RULE_ID" | grep -Eq '^[0-9-]+$'; then
+    safe_remove_sched_rule_id "$RULE_ID"
     /etc/init.d/cron restart
 fi
-echo "<html><head><meta charset='utf-8'><meta http-equiv='refresh' content='2;url=/cgi-bin/schedule?theme=${THEME}'></head><body>"
-echo "<h2>✅ Расписание удалено</h2></body></html>"
+echo "Status: 302 Found"
+echo "Location: /cgi-bin/schedule?theme=${THEME}"
+echo ""

@@ -30,7 +30,7 @@ mkdir -p "$WORK_DIR/control" "$WORK_DIR/data/www/cgi-bin" \
     "$WORK_DIR/data/usr/share/luci/acl.d" \
     "$OUT_DIR"
 
-for f in lib_ruscontrol.sh block unblock devices schedule schedule_del whitelist wifi_block wifi_unblock wifi_block_all wifi_unblock_all block_all_now unblock_all_now; do
+for f in lib_ruscontrol.sh block unblock devices schedule schedule_del schedule_once_exec whitelist wifi_block wifi_unblock wifi_block_all wifi_unblock_all block_all_now unblock_all_now; do
     cp "${ROOT_DIR}/cgi-bin/${f}" "$WORK_DIR/data/www/cgi-bin/${f}"
     chmod 0755 "$WORK_DIR/data/www/cgi-bin/${f}"
 done
@@ -63,7 +63,7 @@ touch /etc/wifi_whitelist
 chmod 0644 /etc/wifi_whitelist
 chmod 0755 /www/cgi-bin/lib_ruscontrol.sh \
     /www/cgi-bin/block /www/cgi-bin/unblock /www/cgi-bin/devices \
-    /www/cgi-bin/schedule /www/cgi-bin/schedule_del /www/cgi-bin/whitelist \
+    /www/cgi-bin/schedule /www/cgi-bin/schedule_del /www/cgi-bin/schedule_once_exec /www/cgi-bin/whitelist \
     /www/cgi-bin/wifi_block /www/cgi-bin/wifi_unblock \
     /www/cgi-bin/wifi_block_all /www/cgi-bin/wifi_unblock_all \
     /www/cgi-bin/block_all_now /www/cgi-bin/unblock_all_now

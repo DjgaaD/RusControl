@@ -2,11 +2,11 @@
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 . "${SCRIPT_DIR}/lib_ruscontrol.sh"
 
-echo "Content-Type: text/html; charset=utf-8"
-echo ""
 THEME=$(get_query_param "theme")
 [ "$THEME" = "dark" ] || THEME="light"
 if [ "$REQUEST_METHOD" != "POST" ]; then
+    echo "Content-Type: text/html; charset=utf-8"
+    echo ""
     echo "<html><head><meta charset='utf-8'></head><body><h2>❌ Неверный метод запроса</h2><a href='/cgi-bin/devices?theme=${THEME}'>← Назад</a></body></html>"
     exit 1
 fi
@@ -14,10 +14,14 @@ read -r POST_DATA
 MAC=$(normalize_mac "$(post_param "$POST_DATA" "mac")")
 CSRF_TOKEN=$(post_param "$POST_DATA" "csrf_token")
 if ! verify_csrf_token "$CSRF_TOKEN"; then
+    echo "Content-Type: text/html; charset=utf-8"
+    echo ""
     echo "<html><head><meta charset='utf-8'></head><body><h2>❌ Ошибка CSRF проверки</h2><a href='/cgi-bin/devices?theme=${THEME}'>← Назад</a></body></html>"
     exit 1
 fi
 if ! is_valid_mac "$MAC"; then
+    echo "Content-Type: text/html; charset=utf-8"
+    echo ""
     echo "<html><head><meta charset='utf-8'></head><body><h2>❌ Некорректный MAC</h2><a href='/cgi-bin/devices?theme=${THEME}'>← Назад</a></body></html>"
     exit 1
 fi
@@ -25,11 +29,14 @@ for iface in $(uci show wireless | grep "=wifi-iface" | cut -d= -f1); do
     uci del_list "${iface}.maclist=${MAC}" 2>/dev/null
 done
 uci commit wireless
-wifi reload >/dev/null 2>&1
+RUNTIME_APPLIED=0
 for iface in $(hostapd_ifaces); do
-    hostapd_cli -i "$iface" deny_acl DEL_MAC "$MAC" 2>/dev/null
-    ubus call "hostapd.${iface}" del_client '{"addr":"'"$MAC"'","reason":3,"deauth":true}' 2>/dev/null
+    if hostapd_cli -i "$iface" deny_acl DEL_MAC "$MAC" >/dev/null 2>&1; then
+        RUNTIME_APPLIED=1
+    fi
 done
-SAFE_MAC=$(html_escape "$MAC")
-echo "<html><head><meta charset='utf-8'><meta http-equiv='refresh' content='3;url=/cgi-bin/devices?theme=${THEME}'></head><body>"
-echo "<h2>✅ Разблокировано: ${SAFE_MAC}</h2><p>WiFi применяет настройки (кратковременный разрыв возможен).</p></body></html>"
+# Fallback: if runtime hostapd control is unavailable, apply via full reload.
+[ "$RUNTIME_APPLIED" -eq 1 ] || wifi reload >/dev/null 2>&1
+echo "Status: 302 Found"
+echo "Location: /cgi-bin/devices?theme=${THEME}"
+echo ""

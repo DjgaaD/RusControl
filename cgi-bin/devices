@@ -4,6 +4,20 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
 echo "Content-Type: text/html; charset=utf-8"
 echo ""
+if [ "$REQUEST_METHOD" = "POST" ]; then
+    read -r POST_DATA
+    ACTION=$(post_param "$POST_DATA" "action")
+    CSRF_POST=$(post_param "$POST_DATA" "csrf_token")
+    if [ "$ACTION" = "rename" ] && verify_csrf_token "$CSRF_POST"; then
+        MAC_RENAME=$(normalize_mac "$(post_param "$POST_DATA" "mac")")
+        ALIAS_RENAME=$(post_param "$POST_DATA" "alias")
+        ALIAS_RENAME=$(printf '%s' "$ALIAS_RENAME" | tr -d '\r\n' | sed 's/[[:space:]][[:space:]]*/ /g;s/^ //;s/ $//')
+        ALIAS_RENAME=$(printf '%s' "$ALIAS_RENAME" | cut -c1-40)
+        if is_valid_mac "$MAC_RENAME"; then
+            set_device_alias "$MAC_RENAME" "$ALIAS_RENAME"
+        fi
+    fi
+fi
 ROUTER_TIME=$(date '+%Y-%m-%dT%H:%M:%S')
 THEME=$(get_query_param "theme")
 if [ "$THEME" = "dark" ]; then
@@ -28,6 +42,17 @@ echo "  var mo = String(now.getMonth()+1).padStart(2,'0');"
 echo "  var y = now.getFullYear();"
 echo "  document.getElementById('clock').textContent = h+':'+m+':'+s+' '+d+'.'+mo+'.'+y;"
 echo "}"
+echo "function toggleAliasEdit(id){"
+echo "  var t=document.getElementById('alias_text_'+id);"
+echo "  var f=document.getElementById('alias_form_'+id);"
+echo "  var b=document.getElementById('alias_edit_btn_'+id);"
+echo "  if(!t||!f||!b) return;"
+echo "  t.style.display='none';"
+echo "  f.style.display='inline-block';"
+echo "  b.style.display='none';"
+echo "  var i=f.querySelector('input[name=alias]');"
+echo "  if(i){ i.focus(); i.select(); }"
+echo "}"
 echo "setInterval(updateClock, 1000);"
 echo "window.onload = updateClock;"
 echo "</script>"
@@ -38,7 +63,7 @@ echo "body.light{background:#f5f5f5;color:#333}"
 echo "table{width:100%;border-collapse:collapse;margin-top:10px;box-shadow:0 0 10px rgba(0,0,0,0.1)}"
 echo ".light table{background:white}"
 echo ".dark table{background:#313244}"
-echo "th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #ddd;font-size:0.9em;white-space:nowrap}"
+echo "th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #ddd;font-size:0.9em;white-space:nowrap;vertical-align:middle}"
 echo ".dark th,.dark td{border-bottom:1px solid #45475a}"
 echo "th{background:#f2f2f2}"
 echo ".dark th{background:#45475a}"
@@ -64,6 +89,10 @@ echo ".header{display:flex;align-items:center;justify-content:space-between;flex
 echo ".header h1{margin:0;font-size:1.3em}"
 echo ".time-box{background:#333;color:#0f0;padding:6px 12px;border-radius:8px;font-family:monospace;font-size:1em}"
 echo ".warn{color:#d00;font-size:0.8em;display:block;margin-top:8px}"
+echo ".alias-input{width:160px;padding:4px 6px;border-radius:4px;border:1px solid #bbb}"
+echo ".dark .alias-input{background:#45475a;color:#cdd6f4;border:1px solid #585b70}"
+echo ".action-btn-edit{background:#555}"
+echo ".name-cell{display:flex;align-items:center;gap:6px}"
 echo "</style></head><body class='${BODY_CLASS}'>"
 echo "<div class='header'>"
 echo "<h1>📡 Устройства в сети</h1>"
@@ -117,14 +146,17 @@ for ap in $(ubus list | grep hostapd); do
         NAME=$(grep -i "$mac_lower" /tmp/dhcp.leases | awk '{print $4}')
         IP=$(grep -i "$mac_lower" /tmp/dhcp.leases | awk '{print $3}')
         [ -z "$NAME" ] || [ "$NAME" = "*" ] && NAME="—"
+        DISPLAY_NAME=$(display_device_name "$mac_lower" "$NAME")
         [ -z "$IP" ] && IP="—"
         SAFE_MAC=$(html_escape "$mac_lower")
         SAFE_SSID=$(html_escape "$SSID")
-        SAFE_NAME=$(html_escape "$NAME")
+        SAFE_NAME=$(html_escape "$DISPLAY_NAME")
         SAFE_IP=$(html_escape "$IP")
+        MAC_ID=$(printf '%s' "$mac_lower" | tr -d ':')
+        SAFE_MAC_ID=$(html_escape "$MAC_ID")
         IS_WHITE=""
         grep -qi "$mac_lower" /etc/wifi_whitelist 2>/dev/null && IS_WHITE=" ⚪"
-        echo "<tr><td>$SAFE_MAC</td><td>$SAFE_SSID</td><td>$SAFE_NAME</td><td>$SAFE_IP</td><td>✅${IS_WHITE}</td><td><form method='POST' action='/cgi-bin/block?theme=${THEME}' class='action-form'><input type='hidden' name='csrf_token' value='$(html_escape "$CSRF_TOKEN")'><input type='hidden' name='mac' value='$SAFE_MAC'><button type='submit' class='action-btn action-btn-block'>⛔ Блок</button></form></td></tr>"
+        echo "<tr><td>$SAFE_MAC</td><td>$SAFE_SSID</td><td><div class='name-cell'><span id='alias_text_${SAFE_MAC_ID}'>$SAFE_NAME</span><form id='alias_form_${SAFE_MAC_ID}' method='POST' action='/cgi-bin/devices?theme=${THEME}' class='action-form' style='display:none'><input type='hidden' name='csrf_token' value='$(html_escape "$CSRF_TOKEN")'><input type='hidden' name='action' value='rename'><input type='hidden' name='mac' value='$SAFE_MAC'><input type='text' name='alias' value='$SAFE_NAME' maxlength='40' class='alias-input'><button type='submit' class='action-btn action-btn-edit'>💾</button></form><button type='button' id='alias_edit_btn_${SAFE_MAC_ID}' class='action-btn action-btn-edit' onclick=\"toggleAliasEdit('${SAFE_MAC_ID}')\">✏️</button></div></td><td>$SAFE_IP</td><td>✅${IS_WHITE}</td><td><form method='POST' action='/cgi-bin/block?theme=${THEME}' class='action-form'><input type='hidden' name='csrf_token' value='$(html_escape "$CSRF_TOKEN")'><input type='hidden' name='mac' value='$SAFE_MAC'><button type='submit' class='action-btn action-btn-block'>⛔ Блок</button></form></td></tr>"
     done
 done
 echo "</table>"
@@ -135,9 +167,12 @@ if [ "$MACFILTER" = "deny" ] && [ -n "$BLOCKED_MACS" ]; then
     for mac in $BLOCKED_MACS; do
         NAME=$(grep -i "$mac" /tmp/dhcp.leases | awk '{print $4}')
         [ -z "$NAME" ] || [ "$NAME" = "*" ] && NAME="—"
+        DISPLAY_NAME=$(display_device_name "$mac" "$NAME")
         SAFE_MAC=$(html_escape "$mac")
-        SAFE_NAME=$(html_escape "$NAME")
-        echo "<tr class='blocked'><td>$SAFE_MAC</td><td>$SAFE_NAME</td><td><form method='POST' action='/cgi-bin/unblock?theme=${THEME}' class='action-form'><input type='hidden' name='csrf_token' value='$(html_escape "$CSRF_TOKEN")'><input type='hidden' name='mac' value='$SAFE_MAC'><button type='submit' class='action-btn action-btn-unblock'>✅ Разблок</button></form></td></tr>"
+        SAFE_NAME=$(html_escape "$DISPLAY_NAME")
+        MAC_ID=$(printf '%s' "$mac" | tr -d ':')
+        SAFE_MAC_ID=$(html_escape "$MAC_ID")
+        echo "<tr class='blocked'><td>$SAFE_MAC</td><td><div class='name-cell'><span id='alias_text_${SAFE_MAC_ID}'>$SAFE_NAME</span><form id='alias_form_${SAFE_MAC_ID}' method='POST' action='/cgi-bin/devices?theme=${THEME}' class='action-form' style='display:none'><input type='hidden' name='csrf_token' value='$(html_escape "$CSRF_TOKEN")'><input type='hidden' name='action' value='rename'><input type='hidden' name='mac' value='$SAFE_MAC'><input type='text' name='alias' value='$SAFE_NAME' maxlength='40' class='alias-input'><button type='submit' class='action-btn action-btn-edit'>💾</button></form><button type='button' id='alias_edit_btn_${SAFE_MAC_ID}' class='action-btn action-btn-edit' onclick=\"toggleAliasEdit('${SAFE_MAC_ID}')\">✏️</button></div></td><td><form method='POST' action='/cgi-bin/unblock?theme=${THEME}' class='action-form'><input type='hidden' name='csrf_token' value='$(html_escape "$CSRF_TOKEN")'><input type='hidden' name='mac' value='$SAFE_MAC'><button type='submit' class='action-btn action-btn-unblock'>✅ Разблок</button></form></td></tr>"
     done
     echo "</table>"
 fi
