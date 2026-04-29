@@ -46,6 +46,14 @@ chmod +x /tmp/install.sh
 /tmp/install.sh auto
 ```
 
+### Быстрое обновление существующей установки
+
+```sh
+wget -O /tmp/install.sh https://raw.githubusercontent.com/DjgaaD/RusControl/main/install.sh
+chmod +x /tmp/install.sh
+/tmp/install.sh auto
+```
+
 ## Установка через пакет
 
 Пакетная установка поддерживается только для OpenWrt 24.
@@ -65,7 +73,7 @@ chmod +x /tmp/install.sh
 Через SSH:
 
 ```sh
-opkg install /tmp/luci-app-ruscontrol-owrt24_1.0.0-1_all.ipk
+opkg install /tmp/luci-app-ruscontrol-owrt24_1.5.0-1_all.ipk
 ```
 
 ### OpenWrt 25
@@ -82,3 +90,5 @@ chmod +x /tmp/install_openwrt25.sh
 
 - `install.sh` поддерживает параметры: `24`, `25`, `auto`.
 - Установщик скачивает файлы с GitHub и автоматически использует fallback на `main`, если версия-ветка недоступна.
+- Для OpenWrt 24 можно использовать как установщик (`install.sh`), так и `.ipk` из релизов.
+- Для OpenWrt 25 рекомендуется установка через `install.sh`/`install_openwrt25.sh`.
