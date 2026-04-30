@@ -1,4 +1,4 @@
-# WiFi Manager для OpenWrt
+# WiFi Manager для OpenWrt 24/25
 
 Веб-интерфейс для управления WiFi устройствами на роутерах с OpenWrt.
 
