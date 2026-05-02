@@ -16,7 +16,7 @@
 
 ## Установка
 
-### Авто-определение версии (рекомендуется)
+### Авто-определение версии OpenWRT 24/25 (рекомендуется)
 
 ```sh
 wget -O /tmp/install.sh https://raw.githubusercontent.com/DjgaaD/RusControl/main/install.sh
