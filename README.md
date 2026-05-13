@@ -1,5 +1,7 @@
 # WiFi Manager для OpenWrt 24/25
 
+Поддержать автора можно тут https://www.donationalerts.com/r/sektantanatoliy
+
 Веб-интерфейс для управления WiFi устройствами на роутерах с OpenWrt.
 
 ## Возможности
@@ -69,8 +71,11 @@ wget -O /tmp/install.sh https://raw.githubusercontent.com/DjgaaD/RusControl/main
 chmod +x /tmp/install.sh
 /tmp/install.sh auto
 ```
+Поддержать автора можно тут https://www.donationalerts.com/r/sektantanatoliy
 
 ## Примечания
 
 - `install.sh` поддерживает параметры: `24`, `25`, `auto`.
 - Установщик скачивает файлы с GitHub и автоматически использует fallback на `main`, если версия-ветка недоступна.
+
+
