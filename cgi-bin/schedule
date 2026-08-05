@@ -454,7 +454,9 @@ echo ".dark .modal-box{background:#313244}"
 echo ".modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}"
 echo ".close-btn{background:#999;color:#fff;border:none;border-radius:6px;padding:4px 8px;cursor:pointer}"
 echo ".err-msg{color:#d00;font-weight:bold}"
+donate_banner_css
 echo "</style></head><body class='${BODY_CLASS}'>"
+echo_donate_banner
 echo "<div class='header'>"
 echo "<h1>⏰ Расписание блокировки</h1>"
 echo "<div class='time-box' id='clock'>загрузка...</div>"
