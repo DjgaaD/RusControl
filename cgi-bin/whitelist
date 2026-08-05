@@ -6,15 +6,32 @@ echo "Content-Type: text/html; charset=utf-8"
 echo ""
 THEME=$(get_query_param "theme")
 [ "$THEME" = "dark" ] || THEME="light"
+FORM_ERROR=""
+FORM_MAC=""
 if [ "$REQUEST_METHOD" = "POST" ]; then
     read -r POST_DATA
     ACTION=$(post_param "$POST_DATA" "action")
-    MAC=$(normalize_mac "$(post_param "$POST_DATA" "mac")")
+    MAC=$(parse_mac_input "$(post_param "$POST_DATA" "mac")")
     CSRF_TOKEN=$(post_param "$POST_DATA" "csrf_token")
     if verify_csrf_token "$CSRF_TOKEN"; then
         if [ "$ACTION" = "add" ] && is_valid_mac "$MAC"; then
-            echo "$MAC" >> /etc/wifi_whitelist
-            sort -u /etc/wifi_whitelist -o /etc/wifi_whitelist
+            if ! grep -qix "$MAC" /etc/wifi_whitelist 2>/dev/null; then
+                echo "$MAC" >> /etc/wifi_whitelist
+                sort -u /etc/wifi_whitelist -o /etc/wifi_whitelist
+            fi
+        fi
+        if [ "$ACTION" = "add_manual" ]; then
+            MAC=$(parse_mac_input "$(post_param "$POST_DATA" "mac_manual")")
+            FORM_MAC="$MAC"
+            if ! is_valid_mac "$MAC"; then
+                FORM_ERROR="Неверный MAC-адрес. Формат: aa:bb:cc:dd:ee:ff"
+            elif grep -qix "$MAC" /etc/wifi_whitelist 2>/dev/null; then
+                FORM_ERROR="Устройство уже в белом списке"
+            else
+                echo "$MAC" >> /etc/wifi_whitelist
+                sort -u /etc/wifi_whitelist -o /etc/wifi_whitelist
+                FORM_MAC=""
+            fi
         fi
         if [ "$ACTION" = "del" ] && is_valid_mac "$MAC"; then
             safe_remove_whitelist_mac "$MAC"
@@ -49,10 +66,32 @@ echo ".action-form{display:inline;margin:0}"
 echo ".action-btn{color:white;border:none;padding:4px 8px;border-radius:4px;font-size:0.85em;cursor:pointer}"
 echo ".action-btn-add{background:#090}"
 echo ".action-btn-del{background:#d00}"
+echo ".add-box{padding:10px;border-radius:8px;box-shadow:0 0 10px rgba(0,0,0,0.1);margin:10px 0}"
+echo ".light .add-box{background:white}"
+echo ".dark .add-box{background:#313244}"
+echo ".mac-input{width:220px;padding:6px 8px;border-radius:4px;border:1px solid #bbb;font-family:monospace}"
+echo ".dark .mac-input{background:#45475a;color:#cdd6f4;border:1px solid #585b70}"
+echo ".form-error{color:#d00;font-size:0.9em;margin:8px 0 0}"
+echo ".form-note{font-size:0.85em;opacity:0.8;margin:6px 0 0}"
+donate_banner_css
 echo "</style></head><body class='${BODY_CLASS}'>"
+echo_donate_banner
 CSRF_TOKEN=$(ensure_csrf_token)
 echo "<h1 style='font-size:1.3em'>⚪ Белый список</h1>"
 echo "<p style='font-size:0.9em'>Устройства из белого списка <strong>не блокируются</strong> общими правилами</p>"
+echo "<div class='add-box'>"
+echo "<h2 style='font-size:1.1em;margin:0 0 8px'>➕ Добавить по MAC-адресу</h2>"
+echo "<form method='POST' action='/cgi-bin/whitelist?theme=${THEME}'>"
+echo "<input type='hidden' name='csrf_token' value='$(html_escape "$CSRF_TOKEN")'>"
+echo "<input type='hidden' name='action' value='add_manual'>"
+echo "<input type='text' name='mac_manual' class='mac-input' placeholder='aa:bb:cc:dd:ee:ff' value='$(html_escape "$FORM_MAC")' maxlength='17' required>"
+echo "<button type='submit' class='action-btn action-btn-add' style='margin-left:6px'>Добавить</button>"
+echo "</form>"
+echo "<p class='form-note'>Можно указать MAC с двоеточиями, дефисами или без разделителей</p>"
+if [ -n "$FORM_ERROR" ]; then
+    echo "<p class='form-error'>❌ $(html_escape "$FORM_ERROR")</p>"
+fi
+echo "</div>"
 echo "<h2 style='font-size:1.1em'>Подключённые</h2>"
 echo "<table><tr><th>MAC</th><th>Имя</th><th>IP</th><th>Действие</th></tr>"
 while IFS=' ' read -r ts mac ip name rest; do

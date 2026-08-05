@@ -93,7 +93,13 @@ echo ".alias-input{width:160px;padding:4px 6px;border-radius:4px;border:1px soli
 echo ".dark .alias-input{background:#45475a;color:#cdd6f4;border:1px solid #585b70}"
 echo ".action-btn-edit{background:#555}"
 echo ".name-cell{display:flex;align-items:center;gap:6px}"
+echo ".offline-row{opacity:0.85}"
+echo ".dark .offline-row{background:#2a2a3a}"
+echo ".light .offline-row{background:#f9f9f9}"
+echo ".section-note{font-size:0.85em;opacity:0.8;margin:4px 0 8px}"
+donate_banner_css
 echo "</style></head><body class='${BODY_CLASS}'>"
+echo_donate_banner
 echo "<div class='header'>"
 echo "<h1>📡 Устройства в сети</h1>"
 echo "<div class='time-box' id='clock'>загрузка...</div>"
@@ -132,6 +138,23 @@ is_blocked_mac() {
     return 1
 }
 
+is_wifi_connected_mac() {
+    local lookup="$1"
+    local m
+    for m in $WIFI_CONNECTED_MACS; do
+        [ "$lookup" = "$m" ] && return 0
+    done
+    return 1
+}
+
+WIFI_CONNECTED_MACS=""
+for ap in $(ubus list | grep hostapd); do
+    IFACE=$(echo "$ap" | sed 's/hostapd\.//')
+    for mac in $(iwinfo "$IFACE" assoclist 2>/dev/null | grep -oE '([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}'); do
+        WIFI_CONNECTED_MACS="$WIFI_CONNECTED_MACS $(normalize_mac "$mac")"
+    done
+done
+
 echo "<h2 style='font-size:1.1em'>📶 Подключены к WiFi</h2>"
 echo "<table><tr><th>MAC</th><th>Сеть</th><th>Имя</th><th>IP</th><th>Статус</th><th>Действие</th></tr>"
 for ap in $(ubus list | grep hostapd); do
@@ -160,6 +183,39 @@ for ap in $(ubus list | grep hostapd); do
     done
 done
 echo "</table>"
+
+echo "<h2 style='font-size:1.1em'>📋 Устройства из DHCP аренды</h2>"
+echo "<p class='section-note'>Устройства, которые получали IP-адрес, но сейчас не подключены к WiFi</p>"
+DHCP_ROWS=0
+if [ -f /tmp/dhcp.leases ] && [ -s /tmp/dhcp.leases ]; then
+    while IFS=' ' read -r ts mac ip name rest; do
+        [ -z "$mac" ] && continue
+        mac_lower=$(normalize_mac "$mac")
+        is_wifi_connected_mac "$mac_lower" && continue
+        if [ "$MACFILTER" = "deny" ] && is_blocked_mac "$mac_lower"; then
+            continue
+        fi
+        if [ "$DHCP_ROWS" -eq 0 ]; then
+            echo "<table><tr><th>MAC</th><th>Имя</th><th>IP</th><th>Статус</th><th>Действие</th></tr>"
+        fi
+        DHCP_ROWS=$((DHCP_ROWS + 1))
+        [ -z "$name" ] || [ "$name" = "*" ] && name="—"
+        DISPLAY_NAME=$(display_device_name "$mac_lower" "$name")
+        [ -z "$ip" ] && ip="—"
+        SAFE_MAC=$(html_escape "$mac_lower")
+        SAFE_NAME=$(html_escape "$DISPLAY_NAME")
+        SAFE_IP=$(html_escape "$ip")
+        MAC_ID=$(printf '%s' "$mac_lower" | tr -d ':')
+        SAFE_MAC_ID=$(html_escape "$MAC_ID")
+        IS_WHITE=""
+        grep -qi "$mac_lower" /etc/wifi_whitelist 2>/dev/null && IS_WHITE=" ⚪"
+        echo "<tr class='offline-row'><td>$SAFE_MAC</td><td><div class='name-cell'><span id='alias_text_${SAFE_MAC_ID}'>$SAFE_NAME</span><form id='alias_form_${SAFE_MAC_ID}' method='POST' action='/cgi-bin/devices?theme=${THEME}' class='action-form' style='display:none'><input type='hidden' name='csrf_token' value='$(html_escape "$CSRF_TOKEN")'><input type='hidden' name='action' value='rename'><input type='hidden' name='mac' value='$SAFE_MAC'><input type='text' name='alias' value='$SAFE_NAME' maxlength='40' class='alias-input'><button type='submit' class='action-btn action-btn-edit'>💾</button></form><button type='button' id='alias_edit_btn_${SAFE_MAC_ID}' class='action-btn action-btn-edit' onclick=\"toggleAliasEdit('${SAFE_MAC_ID}')\">✏️</button></div></td><td>$SAFE_IP</td><td>💤 не в сети${IS_WHITE}</td><td><form method='POST' action='/cgi-bin/block?theme=${THEME}' class='action-form'><input type='hidden' name='csrf_token' value='$(html_escape "$CSRF_TOKEN")'><input type='hidden' name='mac' value='$SAFE_MAC'><button type='submit' class='action-btn action-btn-block'>⛔ Блок</button></form></td></tr>"
+    done < /tmp/dhcp.leases
+    [ "$DHCP_ROWS" -gt 0 ] && echo "</table>"
+fi
+if [ "$DHCP_ROWS" -eq 0 ]; then
+    echo "<p class='section-note'>Нет устройств в DHCP аренде, которые не подключены к WiFi</p>"
+fi
 
 if [ "$MACFILTER" = "deny" ] && [ -n "$BLOCKED_MACS" ]; then
     echo "<h2 style='font-size:1.1em'>🚫 Заблокированные</h2>"

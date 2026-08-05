@@ -71,11 +71,28 @@ wget -O /tmp/install.sh https://raw.githubusercontent.com/DjgaaD/RusControl/main
 chmod +x /tmp/install.sh
 /tmp/install.sh auto
 ```
+
+## Удаление (универсально для OpenWrt 24 и 25)
+
+Удаляет файлы приложения и связанные cron-правила (расписания).
+
+По умолчанию файл whitelist `/etc/wifi_whitelist` сохраняется.
+
+```sh
+wget -O /tmp/uninstall.sh https://raw.githubusercontent.com/DjgaaD/RusControl/main/uninstall.sh
+chmod +x /tmp/uninstall.sh
+/tmp/uninstall.sh
+```
+
+Если нужно удалить whitelist тоже:
+
+```sh
+/tmp/uninstall.sh purge
+```
+
 Поддержать автора можно тут https://www.donationalerts.com/r/sektantanatoliy
 
 ## Примечания
 
 - `install.sh` поддерживает параметры: `24`, `25`, `auto`.
 - Установщик скачивает файлы с GitHub и автоматически использует fallback на `main`, если версия-ветка недоступна.
-
-

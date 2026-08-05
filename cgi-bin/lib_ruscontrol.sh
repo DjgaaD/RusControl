@@ -27,6 +27,30 @@ normalize_mac() {
     printf '%s' "$1" | tr 'A-F' 'a-f'
 }
 
+parse_mac_input() {
+    local raw part1 part2 part3 part4 part5 part6
+    raw=$(printf '%s' "$1" | tr 'A-F' 'a-f' | tr -d ' \t\r\n')
+    case "$raw" in
+        *:*|*-*)
+            printf '%s' "$raw" | tr '-' ':'
+            ;;
+        *)
+            raw=$(printf '%s' "$raw" | tr -d '-:')
+            if [ "${#raw}" -eq 12 ]; then
+                part1=$(printf '%s' "$raw" | cut -c1-2)
+                part2=$(printf '%s' "$raw" | cut -c3-4)
+                part3=$(printf '%s' "$raw" | cut -c5-6)
+                part4=$(printf '%s' "$raw" | cut -c7-8)
+                part5=$(printf '%s' "$raw" | cut -c9-10)
+                part6=$(printf '%s' "$raw" | cut -c11-12)
+                printf '%s:%s:%s:%s:%s:%s' "$part1" "$part2" "$part3" "$part4" "$part5" "$part6"
+            else
+                printf '%s' "$raw"
+            fi
+            ;;
+    esac
+}
+
 is_valid_mac() {
     printf '%s' "$1" | grep -Eq '^([0-9a-f]{2}:){5}[0-9a-f]{2}$'
 }
@@ -159,4 +183,28 @@ verify_csrf_token() {
     local expected
     expected=$(ensure_csrf_token)
     [ -n "$provided" ] && [ "$provided" = "$expected" ]
+}
+
+donate_banner_css() {
+    echo ".donate-banner{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:12px 16px;margin:0 0 12px;border-radius:10px;font-size:1em;box-shadow:0 2px 10px rgba(0,0,0,0.15)}"
+    echo ".light .donate-banner{background:linear-gradient(135deg,#ff9800,#ffc107);color:#3b2200;border:2px solid #e65100}"
+    echo ".dark .donate-banner{background:linear-gradient(135deg,#e65100,#ff9800);color:#fff8e1;border:2px solid #ffb300;box-shadow:0 2px 14px rgba(0,0,0,0.35)}"
+    echo ".donate-banner-text{display:flex;align-items:center;gap:8px;font-weight:bold;font-size:1.05em}"
+    echo ".donate-banner-note{font-size:0.85em;opacity:0.95}"
+    echo ".donate-banner-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}"
+    echo ".donate-banner-btn{display:inline-block;padding:8px 16px;border-radius:8px;font-weight:bold;text-decoration:none;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.2)}"
+    echo ".light .donate-banner-btn{background:#fff;color:#c62800;border:2px solid #fff}"
+    echo ".dark .donate-banner-btn{background:#1e1e2e;color:#ffcc80;border:2px solid #ffcc80}"
+    echo ".donate-banner-btn:hover{transform:scale(1.03);opacity:0.95}"
+}
+
+echo_donate_banner() {
+    echo "<div class='donate-banner'>"
+    echo "<div class='donate-banner-text'>☕ <span>Понравился RusControl?</span></div>"
+    echo "<span class='donate-banner-note'>Проект бесплатный — поддержите разработку</span>"
+    echo "<div class='donate-banner-actions'>"
+    echo "<a class='donate-banner-btn' href='https://www.donationalerts.com/r/sektantanatoliy' target='_blank' rel='noopener noreferrer'>💛 DonationAlerts</a>"
+    echo "<a class='donate-banner-btn' href='https://boosty.to/sektantanatoliy/donate' target='_blank' rel='noopener noreferrer'>🚀 Boosty</a>"
+    echo "</div>"
+    echo "</div>"
 }
