@@ -49,7 +49,7 @@ chmod +x /tmp/install.sh
 Через SSH:
 
 ```sh
-opkg install /tmp/luci-app-ruscontrol-owrt24_1.5.0-1_all.ipk
+opkg install /tmp/luci-app-ruscontrol-owrt24_1.6.0-1_all.ipk
 ```
 или
 ```sh
